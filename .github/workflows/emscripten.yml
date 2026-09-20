@@ -1,0 +1,67 @@
+name: emscripten
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  emscripten:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/embuild" >> "$GITHUB_OUTPUT"
+        echo "emsdk-dir=${{ github.workspace }}/emsdk" >> "$GITHUB_OUTPUT"
+    
+    - name: Modify apt sources
+      if: runner.os == 'Linux'
+      run: sudo sed -i 's/azure\.//' /etc/apt/sources.list && sudo apt-get update
+
+    - name: Install dependencies
+      if: runner.os == 'Linux'
+      run: sudo apt-get install -o Acquire::Retries=3 cmake python3 git
+
+    - name: Install Emscripten SDK
+      run: |
+        git clone https://github.com/emscripten-core/emsdk.git ${{ steps.strings.outputs.emsdk-dir }}
+        cd ${{ steps.strings.outputs.emsdk-dir }}
+        ./emsdk install latest
+        ./emsdk activate latest
+
+    - name: Configure with Emscripten
+      run: |
+        source ${{ steps.strings.outputs.emsdk-dir }}/emsdk_env.sh
+        emcmake cmake -B ${{ steps.strings.outputs.build-output-dir }} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -S ${{ github.workspace }}
+
+    - name: Build with Emscripten
+      run: |
+        source ${{ steps.strings.outputs.emsdk-dir }}/emsdk_env.sh
+        cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release --parallel 8
+
+    - name: List output files
+      run: |
+        echo "Binary files:"
+        ls -lh ${{ steps.strings.outputs.build-output-dir }}/bin
+
+    - name: Prepare package
+      shell: bash
+      run: |
+        mkdir -p emscripten-out
+        find ${{ steps.strings.outputs.build-output-dir }}/bin -maxdepth 1 -type f -iregex ".*\.\(html\|js\|wasm\)" -exec cp {} emscripten-out/ \;
+
+    - name: Upload package
+      uses: actions/upload-artifact@v4
+      with:
+        name: emscripten-out
+        path: emscripten-out
