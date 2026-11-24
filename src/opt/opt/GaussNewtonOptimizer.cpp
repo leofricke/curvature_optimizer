@@ -117,6 +117,7 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
             break;
         }
     }
+    m_statistics.m_timings.stopTiming("Iteration Time");
 
     if (m_statistics.m_status == Status::Running)
     {

@@ -32,12 +32,9 @@ bool lineSearchArmijo(Eigen::VectorXd& params, double& currentEnergy, double& st
         params = origin + current.m_alpha * stepDir;
         current.m_energy = energyFunc.evaluateEnergy(params);
         current.m_hasGradient = false;
-        if (std::isnan(current.m_energy) || params.hasNaN())
-        {
-            break;
-        }
 
-        if (current.m_energy <= initial.m_energy + s_armijoCoeff * current.m_alpha * initial.m_gradient)
+        const bool valid = !std::isnan(current.m_energy);
+        if (valid && current.m_energy <= initial.m_energy + s_armijoCoeff * current.m_alpha * initial.m_gradient)
         {
             currentEnergy = current.m_energy;
             stepSize = current.m_alpha;

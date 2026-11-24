@@ -111,6 +111,9 @@ void OptimizerBase::printIteration(int iteration, double currentEnergy, double s
 {
     constexpr int precision = 5;
     constexpr int spacing = 10 + precision;
+    const std::ios_base::fmtflags flags = std::cout.flags();
+    const std::streamsize oldPrecision = std::cout.precision();
+
     if (iteration >= 0)
         std::cout << std::setw(4) << iteration;
     else
@@ -141,7 +144,9 @@ void OptimizerBase::printIteration(int iteration, double currentEnergy, double s
     else
         std::cout << std::setw(spacing) << "";
 
-    std::cout << std::endl << std::fixed;
+    std::cout << std::endl;
+    std::cout.flags(flags);
+    std::cout.precision(oldPrecision);
 }
 
 std::ostream& operator<<(std::ostream& os, const OptimizerBase::Statistics& stats)

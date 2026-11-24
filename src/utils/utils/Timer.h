@@ -20,6 +20,11 @@ public:
         }
     }
 
+    bool running() const
+    {
+        return m_running;
+    }
+
     void start()
     {
         if (m_running)

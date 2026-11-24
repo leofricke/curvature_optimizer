@@ -18,24 +18,32 @@ public:
 
     void startTiming(const std::string& name)
     {
-        if (!m_timers.contains(name))
+        if (auto timer = m_timers.find(name); timer != m_timers.end())
         {
-            m_timers[name] = Timer();
-            m_measurements[name] = { 0.0 };
+            timer->second.start();
         }
-        m_timers.at(name).start();
+        else
+        {
+            m_timers[name] = Timer(true);
+            m_measurements[name] = {};
+        }
     }
 
     void stopTiming(const std::string& name)
     {
-        m_timers.at(name).stop();
-
-        m_measurements.at(name).push_back(m_timers.at(name).millis());
+        const auto it = m_timers.find(name);
+        if (it == m_timers.end() || !it->second.running())
+        {
+            return;
+        }
+        it->second.stop();
+        m_measurements.at(name).push_back(it->second.millis());
     }
 
     double lastMillis(const std::string& name) const
     {
-        return m_measurements.at(name).back();
+        const std::vector<double>& measurements = m_measurements.at(name);
+        return measurements.empty() ? 0.0 : measurements.back();
     }
 
     double accumulatedMillis(const std::string& name) const
@@ -50,12 +58,12 @@ public:
 
     double meanMillis(const std::string& name) const
     {
-        double sum = 0.0;
-        for (const double& m : m_measurements.at(name))
+        const std::vector<double>& measurements = m_measurements.at(name);
+        if (measurements.empty())
         {
-            sum += m;
+            return 0.0;
         }
-        return sum / static_cast<double>(m_measurements.at(name).size());
+        return accumulatedMillis(name) / static_cast<double>(measurements.size());
     }
 
     static std::string formatMillis(double millis, double precision = 1)
