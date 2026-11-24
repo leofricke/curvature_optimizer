@@ -22,7 +22,7 @@ public:
 
         for (pmp::Face f : mesh.faces())
         {
-            targetMetrics.push_back(createTargetMetric(ws, f));
+            targetMetrics.push_back(createTargetMetric(mesh, f));
             targetMetrics.back().m_triangles[0].m_le01 *= 2.0;
             targetMetrics.back().m_triangles[0].m_le12 *= 2.0;
             targetMetrics.back().m_triangles[0].m_le20 *= 2.0;

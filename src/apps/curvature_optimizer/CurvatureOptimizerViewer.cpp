@@ -142,11 +142,16 @@ void CurvatureOptimizerViewer::updateMeshDrawMode()
 void CurvatureOptimizerViewer::saveCurrentCurvatures()
 {
     VertexProperty<Eigen::Vector2d> vertexCurvs = m_mesh->vertex_property<Eigen::Vector2d>("v:savedCurvs", Eigen::Vector2d::Zero());
+    VertexProperty<double> boundaryCurvs = m_mesh->vertex_property<double>("v:savedBoundaryCurvs", 0.0);
 
     for (Vertex v : m_mesh->vertices())
     {
         const auto& curv = m_optimizer.getCurrentVertexCurvature(v);
         vertexCurvs[v] = { curv.m_kmax, curv.m_kmin };
+        if (m_mesh->is_boundary(v))
+        {
+            boundaryCurvs[v] = m_optimizer.getCurrentBoundaryCurvature(v);
+        }
     }
 }
 
@@ -279,11 +284,19 @@ void CurvatureOptimizerViewer::startOptimizer(bool useSavedCurvs)
     // setup boundary curvature targets
     if (m_useBoundaryCurvs)
     {
+        VertexProperty<double> savedBoundaryCurvs = m_mesh->get_vertex_property<double>("v:savedBoundaryCurvs");
         for (Vertex v : m_mesh->vertices())
         {
             if (m_mesh->is_boundary(v))
             {
-                if (m_boundaryCurvatureEditMode == BoundaryCurvatureEditMode::Global)
+                if (useSavedCurvs)
+                {
+                    if (savedBoundaryCurvs)
+                    {
+                        m_optimizer.addTargetBoundaryCurvature(v, savedBoundaryCurvs[v]);
+                    }
+                }
+                else if (m_boundaryCurvatureEditMode == BoundaryCurvatureEditMode::Global)
                 {
                     m_optimizer.addTargetBoundaryCurvature(v, m_globalBoundaryCurv);
                 }

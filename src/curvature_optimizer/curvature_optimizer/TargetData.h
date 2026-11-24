@@ -7,8 +7,6 @@
 #include <Eigen/Core>
 #include <pmp/surface_mesh.h>
 
-struct CurvatureOptimizerWorkspace;
-
 struct TargetVertexCurvature
 {
     pmp::Vertex m_vertex;
@@ -36,4 +34,4 @@ struct TargetMetric
     InlineVector<VirtualTriangle, 4> m_triangles;
 };
 
-TargetMetric createTargetMetric(const CurvatureOptimizerWorkspace& ws, pmp::Face f);
+TargetMetric createTargetMetric(const pmp::SurfaceMesh& mesh, pmp::Face f);

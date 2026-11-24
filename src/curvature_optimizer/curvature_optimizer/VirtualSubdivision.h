@@ -15,12 +15,17 @@ struct VirtualSubdivision
     VirtualSubdivision() = default;
 
     void updateCenterWeights(const CurvatureOptimizerWorkspace& ws, pmp::Face f);
+    void updateCenterWeights(const pmp::SurfaceMesh& mesh, pmp::Face f);
     Eigen::Vector3d getCenterPoint(const CurvatureOptimizerWorkspace& ws, pmp::Face f) const;
+    Eigen::Vector3d getCenterPoint(const pmp::SurfaceMesh& mesh, pmp::Face f) const;
     double getVertexWeight(const CurvatureOptimizerWorkspace& ws, pmp::Face f, pmp::Vertex v) const;
 
-    void initVirtualTriangles(const CurvatureOptimizerWorkspace& ws, pmp::Face f, InlineVector<VirtualTriangle, 4>& triangles) const;
+    void initVirtualTriangles(const pmp::SurfaceMesh& mesh, pmp::Face f, InlineVector<VirtualTriangle, 4>& triangles) const;
 
     InlineVector<double, 4> m_centerWeights;
+
+private:
+    void updateCenterWeights(const Eigen::Matrix<double, Eigen::Dynamic, 3>& poly);
 };
 
 /**

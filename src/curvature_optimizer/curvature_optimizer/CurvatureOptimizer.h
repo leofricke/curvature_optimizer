@@ -49,6 +49,8 @@ public:
     virtual ~CurvatureOptimizer();
 
     void clearTargets(bool clearMetric = true);
+    void setTargetMetric(const pmp::SurfaceMesh& referenceMesh);
+
     void addTargetVertexCurvature(pmp::Vertex v, double kmax, double kmin);
     void addTargetBoundaryCurvature(pmp::Vertex v, double kb);
     void addTargetPosition(const BarycentricPoint& bary, const Eigen::Vector3d& position);
@@ -72,6 +74,8 @@ public:
     void setOptimizerMode(OptimizerMode mode);
     bool getDynamicInitialStepSize() const;
     void setDynamicInitialStepSize(bool flag);
+    size_t getMaxIterations() const;
+    void setMaxIterations(size_t maxIterations);
     double getPNormFairing() const;
     void setPNormFairing(double pNorm);
 
@@ -117,6 +121,7 @@ private:
 
     OptimizerMode m_optimizerMode;
     bool m_dynamicInitialStepSize;
+    size_t m_maxIterations;
     double m_pNormFairing;
     double m_curvatureEnergyWeight;
     double m_boundaryCurvatureEnergyWeight;

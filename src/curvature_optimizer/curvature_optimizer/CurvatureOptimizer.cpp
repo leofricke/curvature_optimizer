@@ -15,11 +15,13 @@
 #include "opt/GaussNewtonOptimizer.h"
 #include "opt/ModularGaussNewtonEnergyFunction.h"
 #include <numbers>
+#include <stdexcept>
 
 CurvatureOptimizer::CurvatureOptimizer(std::shared_ptr<pmp::SurfaceMesh> mesh)
     : m_mesh(mesh),
       m_optimizerMode(OptimizerMode::TargetCurvature),
       m_dynamicInitialStepSize(true),
+      m_maxIterations(100),
       m_pNormFairing(2.0),
       m_curvatureEnergyWeight(1.0),
       m_boundaryCurvatureEnergyWeight(1.0),
@@ -45,6 +47,20 @@ void CurvatureOptimizer::clearTargets(bool clearMetric)
     if (clearMetric)
     {
         m_targetMetrics.clear();
+    }
+}
+
+void CurvatureOptimizer::setTargetMetric(const pmp::SurfaceMesh& referenceMesh)
+{
+    if (referenceMesh.vertices_size() != m_mesh->vertices_size() || referenceMesh.halfedges_size() != m_mesh->halfedges_size() || referenceMesh.faces_size() != m_mesh->faces_size())
+    {
+        throw std::invalid_argument("setTargetMetric: reference mesh must have the same topology");
+    }
+
+    m_targetMetrics.clear();
+    for (pmp::Face f : referenceMesh.faces())
+    {
+        m_targetMetrics.push_back(createTargetMetric(referenceMesh, f));
     }
 }
 
@@ -152,6 +168,16 @@ void CurvatureOptimizer::setDynamicInitialStepSize(bool flag)
     m_dynamicInitialStepSize = flag;
 }
 
+size_t CurvatureOptimizer::getMaxIterations() const
+{
+    return m_maxIterations;
+}
+
+void CurvatureOptimizer::setMaxIterations(size_t maxIterations)
+{
+    m_maxIterations = maxIterations;
+}
+
 double CurvatureOptimizer::getPNormFairing() const
 {
     return m_pNormFairing;
@@ -208,10 +234,14 @@ void CurvatureOptimizer::setMeshUpdateCallback(MeshUpdateCallback callback)
 
 void CurvatureOptimizer::initTargetMetric()
 {
-    m_targetMetrics.clear();
+    if (!m_targetMetrics.empty())
+    {
+        return;
+    }
+
     for (pmp::Face f : m_mesh->faces())
     {
-        m_targetMetrics.push_back(createTargetMetric(*m_ws, f));
+        m_targetMetrics.push_back(createTargetMetric(*m_mesh, f));
     }
 }
 
@@ -289,7 +319,7 @@ Timings CurvatureOptimizer::compute(const std::vector<pmp::Vertex>& lockedVertic
     m_currentCurvatureError = 0.0;
 
     GaussNewtonOptimizer optimizer;
-    optimizer.setMaxIterations(100);
+    optimizer.setMaxIterations(m_maxIterations);
     optimizer.setConstantMatrixPattern(true);
     optimizer.setDynamicInitialStepSize(m_dynamicInitialStepSize);
     optimizer.setVerbose(m_verbose);

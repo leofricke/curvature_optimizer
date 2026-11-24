@@ -22,7 +22,7 @@ public:
 
         for (pmp::Face f : mesh.faces())
         {
-            targetMetrics.push_back(createTargetMetric(ws, f));
+            targetMetrics.push_back(createTargetMetric(mesh, f));
         }
     }
 

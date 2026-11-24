@@ -84,6 +84,19 @@ struct BarycentricPoint : public BarycentricCoords
     {
     }
 
+    explicit BarycentricPoint(pmp::Vertex v, const pmp::SurfaceMesh& mesh)
+        : BarycentricCoords(1.0, 0.0, 0.0)
+    {
+        for (pmp::Halfedge h : mesh.halfedges(v))
+        {
+            if (!mesh.is_boundary(h))
+            {
+                m_halfedge = h;
+                break;
+            }
+        }
+    }
+
     pmp::Vertex aVertex(const pmp::SurfaceMesh& mesh) const
     {
         return mesh.from_vertex(m_halfedge);

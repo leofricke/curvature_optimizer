@@ -25,6 +25,10 @@ CurvatureVariationEnergy::CurvatureVariationEnergy(CurvatureOptimizerWorkspace& 
 
 static double absPowN(double x, double n)
 {
+    if (n == 1)
+    {
+        return std::abs(x);
+    }
     const double a = std::max(1e-8, std::abs(x));
     return std::pow(a, n);
 }
@@ -32,6 +36,11 @@ static double absPowN(double x, double n)
 static double absPowNGradient(double x, double n, double& dx)
 {
     const double sign = x >= 0.0 ? 1.0 : -1.0;
+    if (n == 1)
+    {
+        dx = sign;
+        return std::abs(x);
+    }
     const double a = std::max(1e-8, std::abs(x));
     dx = (a <= 1e-8) ? 0.0 : sign * n * std::pow(a, n - 1.0);
     return std::pow(a, n);

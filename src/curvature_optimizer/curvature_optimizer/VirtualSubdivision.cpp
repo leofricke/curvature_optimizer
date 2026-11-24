@@ -13,10 +13,32 @@ static Eigen::Matrix<double, Eigen::Dynamic, 3> polygonMatrix(const CurvatureOpt
     return poly;
 }
 
+static Eigen::Matrix<double, Eigen::Dynamic, 3> polygonMatrix(const pmp::SurfaceMesh& mesh, pmp::Face f)
+{
+    const size_t val = mesh.valence(f);
+    Eigen::Matrix<double, Eigen::Dynamic, 3> poly(val, 3);
+    size_t i = 0;
+    for (pmp::Halfedge h : mesh.halfedges(f))
+    {
+        poly.row(i) = static_cast<Eigen::Vector3d>(mesh.position(mesh.from_vertex(h)));
+        i++;
+    }
+    return poly;
+}
+
 void VirtualSubdivision::updateCenterWeights(const CurvatureOptimizerWorkspace& ws, pmp::Face f)
 {
+    updateCenterWeights(polygonMatrix(ws, f));
+}
+
+void VirtualSubdivision::updateCenterWeights(const pmp::SurfaceMesh& mesh, pmp::Face f)
+{
+    updateCenterWeights(polygonMatrix(mesh, f));
+}
+
+void VirtualSubdivision::updateCenterWeights(const Eigen::Matrix<double, Eigen::Dynamic, 3>& poly)
+{
     m_centerWeights.clear();
-    const Eigen::Matrix<double, Eigen::Dynamic, 3> poly = polygonMatrix(ws, f);
     const int n = poly.rows();
     if (n == 3)
     {
@@ -76,6 +98,18 @@ Eigen::Vector3d VirtualSubdivision::getCenterPoint(const CurvatureOptimizerWorks
     return center;
 }
 
+Eigen::Vector3d VirtualSubdivision::getCenterPoint(const pmp::SurfaceMesh& mesh, pmp::Face f) const
+{
+    Eigen::Vector3d center = Eigen::Vector3d::Zero();
+    size_t idx = 0;
+    for (pmp::Halfedge h : mesh.halfedges(f))
+    {
+        center += m_centerWeights[idx] * static_cast<Eigen::Vector3d>(mesh.position(mesh.from_vertex(h)));
+        idx++;
+    }
+    return center;
+}
+
 double VirtualSubdivision::getVertexWeight(const CurvatureOptimizerWorkspace& ws, pmp::Face f, pmp::Vertex v) const
 {
     size_t hidx = 0;
@@ -90,32 +124,21 @@ double VirtualSubdivision::getVertexWeight(const CurvatureOptimizerWorkspace& ws
     throw std::runtime_error("Vertex not found");
 }
 
-void VirtualSubdivision::initVirtualTriangles(const CurvatureOptimizerWorkspace& ws, pmp::Face f, InlineVector<VirtualTriangle, 4>& triangles) const
+void VirtualSubdivision::initVirtualTriangles(const pmp::SurfaceMesh& mesh, pmp::Face f, InlineVector<VirtualTriangle, 4>& triangles) const
 {
     triangles.clear();
-    const size_t val = ws.m_mesh.valence(f);
-    const Eigen::Vector3d center = getCenterPoint(ws, f);
+    const Eigen::Vector3d center = getCenterPoint(mesh, f);
 
-    if (val == 3)
+    if (mesh.valence(f) == 3)
     {
-        const pmp::Halfedge h = ws.m_mesh.halfedge(f);
-        const pmp::Vertex v0 = ws.m_mesh.from_vertex(h);
-        const pmp::Vertex v1 = ws.m_mesh.to_vertex(h);
-        const Eigen::Vector3d p0 = ws.position(v0);
-        const Eigen::Vector3d p1 = ws.position(v1);
-
-        triangles.emplace_back(h, p0, p1, center);
+        const pmp::Halfedge h = mesh.halfedge(f);
+        triangles.emplace_back(h, mesh.position(mesh.from_vertex(h)), mesh.position(mesh.to_vertex(h)), center);
     }
     else
     {
-        for (pmp::Halfedge h : ws.m_mesh.halfedges(f))
+        for (pmp::Halfedge h : mesh.halfedges(f))
         {
-            const pmp::Vertex v0 = ws.m_mesh.from_vertex(h);
-            const pmp::Vertex v1 = ws.m_mesh.to_vertex(h);
-            const Eigen::Vector3d p0 = ws.position(v0);
-            const Eigen::Vector3d p1 = ws.position(v1);
-
-            triangles.emplace_back(h, p0, p1, center);
+            triangles.emplace_back(h, mesh.position(mesh.from_vertex(h)), mesh.position(mesh.to_vertex(h)), center);
         }
     }
 }

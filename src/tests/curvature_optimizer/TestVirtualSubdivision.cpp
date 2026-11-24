@@ -10,19 +10,16 @@ TEST(VirtualSubdivisionTest, BasicTestSingleTriangle)
     const pmp::Vertex v2 = mesh.add_vertex(pmp::Point(1.0, 2.0, 0.0));
     const pmp::Face f = mesh.add_triangle(v0, v1, v2);
 
-    CurvatureOptimizerWorkspace ws(mesh);
-    ws.initMeshData();
-
     const pmp::Halfedge h = mesh.halfedge(f);
     const Eigen::Vector3d p0 = mesh.position(mesh.from_vertex(h));
     const Eigen::Vector3d p1 = mesh.position(mesh.to_vertex(h));
     const Eigen::Vector3d p2 = mesh.position(mesh.to_vertex(mesh.next_halfedge(h)));
 
     VirtualSubdivision subdiv;
-    subdiv.updateCenterWeights(ws, f);
+    subdiv.updateCenterWeights(mesh, f);
 
     InlineVector<VirtualTriangle, 4> triangles;
-    subdiv.initVirtualTriangles(ws, f, triangles);
+    subdiv.initVirtualTriangles(mesh, f, triangles);
     const VirtualTriangle& tri = triangles[0];
 
     const Eigen::Vector3d incenter = tri.m_incenter.interpolate(p0, p1, p2);
