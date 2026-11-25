@@ -39,7 +39,7 @@ void RegularizationEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonS
 void RegularizationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const InitialPosition& initialPosition : m_initialPositions)
     {
         const Eigen::Vector3d p = m_ws.position(initialPosition.m_vertex);
@@ -50,8 +50,10 @@ void RegularizationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, G
         {
             for (size_t i = 0; i < 3; ++i)
             {
-                row.clear();
-                row.addEntry(dofIdx * 3 + i, 1.0);
+                row.clearPattern();
+                row.beginFill();
+                row.insert(dofIdx * 3 + i, 1.0);
+                row.endFill();
                 system.insertJacobianRow(ridx + i, row);
             }
         }

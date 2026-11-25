@@ -3,7 +3,8 @@
 #include "GaussNewtonEnergyFunction.h"
 #include "LineSearch.h"
 #include "LinearSolver.h"
-#include "utils/EigenMathUtil.h"
+#include "utils/SpMatUtil.h"
+#include <utility>
 
 static const double s_regularizationBeta = 1e-6;
 
@@ -56,14 +57,16 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
         }
 
         double regularizer = 0.0;
-        const double minDiag = minDiagonal(energyFunc->m_system.m_hessian);
+        GaussNewtonSystem& system = energyFunc->m_system;
+        const double minDiag = minDiagonal(system.m_hessian);
         if (minDiag <= 1e-12)
         {
             regularizer = -minDiag + s_regularizationBeta;
         }
-        regularize(energyFunc->m_system.m_hessian, regularizer);
+        regularize(system.m_hessian, regularizer);
 
-        if (!solver.compute(energyFunc->m_system.m_hessian, !m_constantMatrixPattern || i == 0))
+        const bool patternDirty = system.m_hessianPatternDirty || i == 0;
+        if (!solver.compute(std::as_const(system.m_hessian).map(), patternDirty))
         {
             m_statistics.m_status = Status::SolverFailed;
             break;

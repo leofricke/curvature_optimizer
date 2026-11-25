@@ -69,6 +69,12 @@ if(NOT TARGET args)
     add_subdirectory(args SYSTEM EXCLUDE_FROM_ALL)
 endif()
 
+if(NOT TARGET spmat)
+    message(STATUS "Adding spmat dependency")
+
+    add_subdirectory(spmat SYSTEM EXCLUDE_FROM_ALL)
+endif()
+
 if(BUILD_TESTS AND NOT TARGET GTest::gtest_main)
     message(STATUS "Adding googletest dependency")
 

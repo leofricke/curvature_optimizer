@@ -4,7 +4,7 @@
 #include <iomanip>
 
 OptimizerBase::OptimizerBase()
-    : m_maxIterations(500), m_gradientTolerance(1e-8), m_stepTolerance(1e-8), m_energyReductionTolerance(1e-8), m_constantMatrixPattern(false), m_verbose(false)
+    : m_maxIterations(500), m_gradientTolerance(1e-8), m_stepTolerance(1e-8), m_energyReductionTolerance(1e-8), m_verbose(false)
 {
 }
 
@@ -26,11 +26,6 @@ void OptimizerBase::setStepTolerance(double tolerance)
 void OptimizerBase::setEnergyReductionTolerance(double tolerance)
 {
     m_energyReductionTolerance = tolerance;
-}
-
-void OptimizerBase::setConstantMatrixPattern(bool flag)
-{
-    m_constantMatrixPattern = flag;
 }
 
 void OptimizerBase::setVerbose(bool flag)

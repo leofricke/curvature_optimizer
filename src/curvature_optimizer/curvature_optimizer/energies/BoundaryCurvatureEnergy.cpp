@@ -25,7 +25,7 @@ void BoundaryCurvatureEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewt
 void BoundaryCurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const TargetBoundaryCurvature& target : m_targetBoundaryCurvatures)
     {
         LocalGradient<Eigen::RowVector3d> gk;
@@ -33,15 +33,17 @@ void BoundaryCurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&
 
         system.m_residual[ridx] = k - target.m_k;
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : gk)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, gk[vv]);
+                row.insertSegment(dofIdx * 3, gk[vv]);
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx, row);
 
         ridx++;

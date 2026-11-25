@@ -92,9 +92,9 @@ void CurvatureVariationEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNew
 void CurvatureVariationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row0;
-    SparseVector row1;
-    SparseVector row2;
+    spmat::SpVec<double> row0 = system.createJacobianRow();
+    spmat::SpVec<double> row1 = system.createJacobianRow();
+    spmat::SpVec<double> row2 = system.createJacobianRow();
     for (pmp::Face f : m_ws.m_mesh.faces())
     {
         const pmp::Halfedge h = m_ws.m_mesh.halfedge(f);
@@ -150,17 +150,20 @@ void CurvatureVariationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd
         system.m_residual[ridx + 5] *= sqrtA;
 
         {
-            row0.clear();
-            row1.clear();
-            row2.clear();
+            row0.clearPattern();
+            row0.beginFill();
+            row1.clearPattern();
+            row1.beginFill();
+            row2.clearPattern();
+            row2.beginFill();
             for (pmp::Vertex vv : Jkmax)
             {
                 const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                 if (dofIdx >= 0)
                 {
-                    row0.addSegment(dofIdx * 3, sqrtA * dmax[0] * Jkmax[vv].row(0));
-                    row1.addSegment(dofIdx * 3, sqrtA * dmax[1] * Jkmax[vv].row(1));
-                    row2.addSegment(dofIdx * 3, sqrtA * dmax[2] * Jkmax[vv].row(2));
+                    row0.insertSegment(dofIdx * 3, sqrtA * dmax[0] * Jkmax[vv].row(0));
+                    row1.insertSegment(dofIdx * 3, sqrtA * dmax[1] * Jkmax[vv].row(1));
+                    row2.insertSegment(dofIdx * 3, sqrtA * dmax[2] * Jkmax[vv].row(2));
                 }
             }
             for (pmp::Vertex vv : ga)
@@ -168,28 +171,34 @@ void CurvatureVariationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd
                 const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                 if (dofIdx >= 0)
                 {
-                    row0.addSegment(dofIdx * 3, r0 * ga[vv]);
-                    row1.addSegment(dofIdx * 3, r1 * ga[vv]);
-                    row2.addSegment(dofIdx * 3, r2 * ga[vv]);
+                    row0.insertSegment(dofIdx * 3, r0 * ga[vv]);
+                    row1.insertSegment(dofIdx * 3, r1 * ga[vv]);
+                    row2.insertSegment(dofIdx * 3, r2 * ga[vv]);
                 }
             }
+            row0.endFill();
             system.insertJacobianRow(ridx, row0);
+            row1.endFill();
             system.insertJacobianRow(ridx + 1, row1);
+            row2.endFill();
             system.insertJacobianRow(ridx + 2, row2);
         }
 
         {
-            row0.clear();
-            row1.clear();
-            row2.clear();
+            row0.clearPattern();
+            row0.beginFill();
+            row1.clearPattern();
+            row1.beginFill();
+            row2.clearPattern();
+            row2.beginFill();
             for (pmp::Vertex vv : Jkmin)
             {
                 const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                 if (dofIdx >= 0)
                 {
-                    row0.addSegment(dofIdx * 3, sqrtA * dmin[0] * Jkmin[vv].row(0));
-                    row1.addSegment(dofIdx * 3, sqrtA * dmin[1] * Jkmin[vv].row(1));
-                    row2.addSegment(dofIdx * 3, sqrtA * dmin[2] * Jkmin[vv].row(2));
+                    row0.insertSegment(dofIdx * 3, sqrtA * dmin[0] * Jkmin[vv].row(0));
+                    row1.insertSegment(dofIdx * 3, sqrtA * dmin[1] * Jkmin[vv].row(1));
+                    row2.insertSegment(dofIdx * 3, sqrtA * dmin[2] * Jkmin[vv].row(2));
                 }
             }
             for (pmp::Vertex vv : ga)
@@ -197,13 +206,16 @@ void CurvatureVariationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd
                 const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                 if (dofIdx >= 0)
                 {
-                    row0.addSegment(dofIdx * 3, r3 * ga[vv]);
-                    row1.addSegment(dofIdx * 3, r4 * ga[vv]);
-                    row2.addSegment(dofIdx * 3, r5 * ga[vv]);
+                    row0.insertSegment(dofIdx * 3, r3 * ga[vv]);
+                    row1.insertSegment(dofIdx * 3, r4 * ga[vv]);
+                    row2.insertSegment(dofIdx * 3, r5 * ga[vv]);
                 }
             }
+            row0.endFill();
             system.insertJacobianRow(ridx + 3, row0);
+            row1.endFill();
             system.insertJacobianRow(ridx + 4, row1);
+            row2.endFill();
             system.insertJacobianRow(ridx + 5, row2);
         }
 

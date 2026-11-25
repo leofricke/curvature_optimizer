@@ -5,7 +5,7 @@ class EigenLDLTSolver : public LinearSolverImpl
 public:
     EigenLDLTSolver() = default;
 
-    bool compute(const Eigen::SparseMatrix<double, Eigen::ColMajor>& A, bool patternDirty) override
+    bool compute(const SparseMatrixView& A, bool patternDirty) override
     {
         if (patternDirty)
         {
@@ -22,7 +22,7 @@ public:
     }
 
 private:
-    Eigen::SimplicialLDLT<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::Lower> m_solver;
+    Eigen::SimplicialLDLT<SparseMatrixView, Eigen::Lower> m_solver;
 };
 
 #if defined(HAS_MKL)
@@ -36,7 +36,7 @@ public:
         //m_solver.pardisoParameterArray()[33] = omp_get_num_threads(); // enable CNR mode for reproducible results
     }
 
-    bool compute([[maybe_unused]] const Eigen::SparseMatrix<double, Eigen::ColMajor>& A, [[maybe_unused]] bool patternDirty) override
+    bool compute([[maybe_unused]] const SparseMatrixView& A, [[maybe_unused]] bool patternDirty) override
     {
 #if defined(HAS_MKL)
         if (patternDirty)
@@ -62,7 +62,7 @@ public:
 
 private:
 #if defined(HAS_MKL)
-    Eigen::PardisoLDLT<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::Lower> m_solver;
+    Eigen::PardisoLDLT<SparseMatrixView, Eigen::Lower> m_solver;
 #endif
 };
 
@@ -74,7 +74,7 @@ class AccelerateLDLTSolver : public LinearSolverImpl
 public:
     AccelerateLDLTSolver() = default;
 
-    bool compute([[maybe_unused]] const Eigen::SparseMatrix<double, Eigen::ColMajor>& A, [[maybe_unused]] bool patternDirty) override
+    bool compute([[maybe_unused]] const SparseMatrixView& A, [[maybe_unused]] bool patternDirty) override
     {
 #if defined(HAS_ACCELERATE)
         if (patternDirty)
@@ -115,7 +115,7 @@ LinearSolver::LinearSolver()
 #endif
 }
 
-bool LinearSolver::compute(const Eigen::SparseMatrix<double, Eigen::ColMajor>& A, bool patternDirty)
+bool LinearSolver::compute(const SparseMatrixView& A, bool patternDirty)
 {
     return m_impl->compute(A, patternDirty);
 }

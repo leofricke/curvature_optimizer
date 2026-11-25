@@ -73,12 +73,12 @@ struct ModularGaussNewtonEnergyFunction : public GaussNewtonEnergyFunction
 
     double evaluateResidualAndJacobianImpl(const Eigen::VectorXd& params) override
     {
-        m_system.beginFilling();
+        m_system.beginFill();
         for (auto& block : m_blocks)
         {
             block->evaluateResidualAndJacobian(params, m_system);
         }
-        m_system.endFilling();
+        m_system.endFill();
         return m_system.evaluateEnergy();
     }
 

@@ -25,7 +25,7 @@ void CurvatureEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem
 void CurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const TargetVertexCurvature& target : m_targetVertexCurvatures)
     {
         const Eigen::Vector2d targetCurv = { target.m_kmax, target.m_kmin };
@@ -35,26 +35,30 @@ void CurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussN
         const LocalGradient<Eigen::RowVector3d, 8>& gkmax = m_ws.m_currentMaxCurvatureGradients[target.m_vertex];
         const LocalGradient<Eigen::RowVector3d, 8>& gkmin = m_ws.m_currentMinCurvatureGradients[target.m_vertex];
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : gkmax)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, gkmax[vv]);
+                row.insertSegment(dofIdx * 3, gkmax[vv]);
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx, row);
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : gkmin)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, gkmin[vv]);
+                row.insertSegment(dofIdx * 3, gkmin[vv]);
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx + 1, row);
 
         ridx += 2;

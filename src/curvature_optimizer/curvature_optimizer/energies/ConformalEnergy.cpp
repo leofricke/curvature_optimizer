@@ -69,7 +69,7 @@ void ConformalEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem
 void ConformalEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const TargetMetric& target : m_targetMetrics)
     {
         const Eigen::Vector3d center = target.m_subdivision.getCenterPoint(m_ws, target.m_face);
@@ -147,15 +147,17 @@ void ConformalEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussN
                 LocalGradient<Eigen::RowVector3d> g;
                 applyProductRule1(l, 1.0 / std::sqrt(A), gl, ga, g);
 
-                row.clear();
+                row.clearPattern();
+                row.beginFill();
                 for (pmp::Vertex vv : g)
                 {
                     const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                     if (dofIdx >= 0)
                     {
-                        row.addSegment(dofIdx * 3, aj * g[vv]);
+                        row.insertSegment(dofIdx * 3, aj * g[vv]);
                     }
                 }
+                row.endFill();
                 system.insertJacobianRow(ridx + j, row);
             }
 
@@ -180,15 +182,17 @@ void ConformalEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussN
                 LocalGradient<Eigen::RowVector3d> g;
                 applyProductRule1(l, 1.0 / std::sqrt(A), gl, ga, g);
 
-                row.clear();
+                row.clearPattern();
+                row.beginFill();
                 for (pmp::Vertex vv : g)
                 {
                     const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                     if (dofIdx >= 0)
                     {
-                        row.addSegment(dofIdx * 3, b * g[vv]);
+                        row.insertSegment(dofIdx * 3, b * g[vv]);
                     }
                 }
+                row.endFill();
                 system.insertJacobianRow(ridx + 3 + j, row);
             }
 

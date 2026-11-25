@@ -50,7 +50,7 @@ void PolygonPlanarityEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewto
 void PolygonPlanarityEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (pmp::Face f : m_ws.m_mesh.faces())
     {
         const size_t val = m_ws.m_mesh.valence(f);
@@ -88,15 +88,17 @@ void PolygonPlanarityEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&,
                 const double c0 = (std::abs(r) > 1e-10) ? sign / (2.0 * std::sqrt(std::abs(r))) : 0.0;
                 g *= c0;
 
-                row.clear();
+                row.clearPattern();
+                row.beginFill();
                 for (pmp::Vertex vv : g)
                 {
                     const int dofIdx = m_ws.m_dofs.dofIdx(vv);
                     if (dofIdx >= 0)
                     {
-                        row.addSegment(dofIdx * 3, g[vv]);
+                        row.insertSegment(dofIdx * 3, g[vv]);
                     }
                 }
+                row.endFill();
                 system.insertJacobianRow(ridx, row);
 
                 ridx++;

@@ -24,7 +24,7 @@ void WillmoreEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem&
 void WillmoreEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (pmp::Vertex v : m_ws.m_mesh.vertices())
     {
         LocalGradient<Eigen::RowVector3d, 8> gh;
@@ -32,15 +32,17 @@ void WillmoreEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNe
 
         system.m_residual[ridx] = H;
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : gh)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, gh[vv]);
+                row.insertSegment(dofIdx * 3, gh[vv]);
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx, row);
 
         ridx++;

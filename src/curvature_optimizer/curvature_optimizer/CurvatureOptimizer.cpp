@@ -320,7 +320,6 @@ Timings CurvatureOptimizer::compute(const std::vector<pmp::Vertex>& lockedVertic
 
     GaussNewtonOptimizer optimizer;
     optimizer.setMaxIterations(m_maxIterations);
-    optimizer.setConstantMatrixPattern(true);
     optimizer.setDynamicInitialStepSize(m_dynamicInitialStepSize);
     optimizer.setVerbose(m_verbose);
 

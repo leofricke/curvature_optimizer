@@ -10,8 +10,7 @@ list (APPEND HEADER_FILES
     opt/ModularGaussNewtonEnergyFunction.h
     opt/OptimizerBase.h
 
-    opt/utils/FixedPatternMatrixBuilder.h
-    opt/utils/SparseVector.h
+    opt/utils/SpMatUtil.h
 )
 
 list (APPEND SOURCE_FILES
@@ -24,7 +23,7 @@ list (APPEND SOURCE_FILES
 
 add_library(opt ${HEADER_FILES} ${SOURCE_FILES})
 target_include_directories(opt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(opt PUBLIC utils Eigen3::Eigen)
+target_link_libraries(opt PUBLIC utils Eigen3::Eigen spmat::spmat)
 
 include(FindSolverLibraries)
 link_solver_libraries(opt)

@@ -15,7 +15,7 @@ inline std::shared_ptr<GaussNewtonEnergyFunction> createRosenbrockFunctionResidu
 
     GaussNewtonEnergyLambdaFunction::ResidualAndJacobianLambda jacobianLambda = [n](const Eigen::VectorXd& x, GaussNewtonSystem& system)
     {
-        system.beginFilling();
+        system.beginFill();
 
         for (size_t i = 0; i < n; i += 2)
         {
@@ -23,21 +23,25 @@ inline std::shared_ptr<GaussNewtonEnergyFunction> createRosenbrockFunctionResidu
             system.m_residual[i + 1] = 10.0 * (x(i + 1) - x(i) * x(i));
         }
 
-        SparseVector row;
+        spmat::SpVec<double> row = system.createJacobianRow();
 
         for (size_t i = 0; i < n; i += 2)
         {
-            row.clear();
-            row.addEntry(i, -1.0);
+            row.clearPattern();
+            row.beginFill();
+            row.insert(i, -1.0);
+            row.endFill();
             system.insertJacobianRow(i, row);
 
-            row.clear();
-            row.addEntry(i, -20.0 * x(i));
-            row.addEntry(i + 1, 10.0);
+            row.clearPattern();
+            row.beginFill();
+            row.insert(i, -20.0 * x(i));
+            row.insert(i + 1, 10.0);
+            row.endFill();
             system.insertJacobianRow(i + 1, row);
         }
 
-        system.endFilling();
+        system.endFill();
     };
 
     return std::make_shared<GaussNewtonEnergyLambdaFunction>(n, n, residualLambda, jacobianLambda);

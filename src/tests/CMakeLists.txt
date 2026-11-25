@@ -33,7 +33,6 @@ list (APPEND SOURCE_FILES
     curvature_optimizer/quantities/TestMeanCurvatureDerivatives.cpp
     curvature_optimizer/quantities/TestScalarFieldGradientDerivatives.cpp
     
-    opt/TestFixedPatternMatrixBuilder.cpp
     opt/TestGaussNewtonOptimizer.cpp
     opt/TestGaussNewtonSystem.cpp
     

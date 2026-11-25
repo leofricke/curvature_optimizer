@@ -26,7 +26,7 @@ void AreaEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& sys
 void AreaEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const TargetMetric& target : m_targetMetrics)
     {
         const double A = m_ws.m_currentFaceAreas[target.m_face];
@@ -40,26 +40,30 @@ void AreaEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewton
         applyChainRule1(A, [](double x) { return -1.0 / (2.0 * x * std::sqrt(x)); }, ga, gai);
         applyChainRule1Inplace(A, [](double x) { return 1.0 / (2.0 * std::sqrt(x)); }, ga);
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : gai)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, gai[vv] * std::sqrt(target.m_area));
+                row.insertSegment(dofIdx * 3, gai[vv] * std::sqrt(target.m_area));
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx, row);
 
-        row.clear();
+        row.clearPattern();
+        row.beginFill();
         for (pmp::Vertex vv : ga)
         {
             const int dofIdx = m_ws.m_dofs.dofIdx(vv);
             if (dofIdx >= 0)
             {
-                row.addSegment(dofIdx * 3, ga[vv] / std::sqrt(target.m_area));
+                row.insertSegment(dofIdx * 3, ga[vv] / std::sqrt(target.m_area));
             }
         }
+        row.endFill();
         system.insertJacobianRow(ridx + 1, row);
 
         ridx += 2;

@@ -1,7 +1,7 @@
 #include "GaussNewtonSystem.h"
 
 GaussNewtonSystem::GaussNewtonSystem(size_t numResiduals, size_t numVars)
-    : m_numResiduals(numResiduals), m_numVars(numVars), m_buildFullJacobian(false)
+    : m_numResiduals(numResiduals), m_numVars(numVars), m_hessianPatternDirty(true), m_buildFullJacobian(false)
 {
     init(numResiduals, numVars);
 }
@@ -16,7 +16,8 @@ void GaussNewtonSystem::init(size_t numResiduals, size_t numVars)
     m_weights.setOnes();
     m_gradient.resize(numVars);
     m_hessian.resize(numVars, numVars);
-    m_hessianBuilder.setMatrix(&m_hessian);
+    m_hessian.clearPattern();
+    m_hessianPatternDirty = true;
 
     if (m_buildFullJacobian)
     {
@@ -24,10 +25,20 @@ void GaussNewtonSystem::init(size_t numResiduals, size_t numVars)
     }
 }
 
-void GaussNewtonSystem::beginFilling()
+void GaussNewtonSystem::beginFill()
 {
     m_gradient.setZero();
-    m_hessianBuilder.begin();
+    m_hessian.beginFill();
+    m_hessianPatternDirty = false;
+
+    if (m_hessian.nonZeros() == 0)
+    {
+        // create explicit diagonal
+        for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(m_numVars); ++i)
+        {
+            m_hessian.insert(i, i, 0.0);
+        }
+    }
 
     if (m_buildFullJacobian)
     {
@@ -36,48 +47,35 @@ void GaussNewtonSystem::beginFilling()
     }
 }
 
-void GaussNewtonSystem::endFilling()
+bool GaussNewtonSystem::endFill()
 {
-    m_hessianBuilder.end();
+    m_hessianPatternDirty = m_hessian.endFill();
+    return m_hessianPatternDirty;
 }
 
-void GaussNewtonSystem::insertJacobianRow(Eigen::Index row, SparseVector& vec)
+void GaussNewtonSystem::insertJacobianRow(Eigen::Index row, const spmat::SpVec<double>& vec)
 {
     const double r = m_residual[row];
     const double w = m_weights[row];
 
-    vec.sortEntries();
-    const std::vector<SparseVector::Entry>& entries = vec.getEntries();
-    const size_t n = entries.size();
-
-    for (size_t j = 0; j < n;)
+    for (const spmat::SpVec<double>::Entry& e : vec.entries())
     {
-        const int col = entries[j].m_idx;
-
-        double colValue = 0.0;
-        size_t jEnd = j;
-        while (jEnd < n && entries[jEnd].m_idx == col)
-        {
-            colValue += entries[jEnd].m_value;
-            ++jEnd;
-        }
-
-        FixedPatternMatrixBuilder::ColumnInserter inserter = m_hessianBuilder.columnInserter(col);
-        for (size_t i = j; i < n; ++i) // lower-triangular part only
-        {
-            const SparseVector::Entry& e0 = entries[i];
-            inserter.addAscending(e0.m_idx, e0.m_value * w * colValue);
-        }
-
-        m_gradient[col] += colValue * w * r;
-
-        if (m_buildFullJacobian)
-        {
-            m_jacobian.coeffRef(row, col) += colValue;
-        }
-
-        j = jEnd;
+        m_gradient[e.m_idx] += e.m_value * w * r;
     }
+    m_hessian.insertOuterProduct(vec, w);
+
+    if (m_buildFullJacobian)
+    {
+        for (const spmat::SpVec<double>::Entry& e : vec.entries())
+        {
+            m_jacobian.coeffRef(row, e.m_idx) += e.m_value;
+        }
+    }
+}
+
+spmat::SpVec<double> GaussNewtonSystem::createJacobianRow() const
+{
+    return spmat::SpVec<double>(static_cast<int>(m_numVars));
 }
 
 double GaussNewtonSystem::evaluateEnergy() const

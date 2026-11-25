@@ -44,7 +44,6 @@ public:
     void setGradientTolerance(double tolerance);
     void setStepTolerance(double tolerance);
     void setEnergyReductionTolerance(double tolerance);
-    void setConstantMatrixPattern(bool flag);
     void setVerbose(bool flag);
 
     void setUpdateCallback(UpdateCallback callback);
@@ -64,7 +63,6 @@ protected:
     double m_gradientTolerance;
     double m_stepTolerance;
     double m_energyReductionTolerance;
-    bool m_constantMatrixPattern;
     bool m_verbose;
 
     UpdateCallback m_updateCallback;

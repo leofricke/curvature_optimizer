@@ -27,7 +27,7 @@ void PositionEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem&
 void PositionEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
 {
     size_t ridx = m_offset;
-    SparseVector row;
+    spmat::SpVec<double> row = system.createJacobianRow();
     for (const TargetPosition& target : m_targetPositions)
     {
         const pmp::Vertex v0 = target.m_bary.aVertex(m_ws.m_mesh);
@@ -41,19 +41,21 @@ void PositionEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNe
         const int dofIdx2 = m_ws.m_dofs.dofIdx(v2);
         for (size_t i = 0; i < 3; ++i)
         {
-            row.clear();
+            row.clearPattern();
+            row.beginFill();
             if (dofIdx0 >= 0)
             {
-                row.addEntry(dofIdx0 * 3 + i, target.m_bary.m_alpha);
+                row.insert(dofIdx0 * 3 + i, target.m_bary.m_alpha);
             }
             if (dofIdx1 >= 0)
             {
-                row.addEntry(dofIdx1 * 3 + i, target.m_bary.m_beta);
+                row.insert(dofIdx1 * 3 + i, target.m_bary.m_beta);
             }
             if (dofIdx2 >= 0)
             {
-                row.addEntry(dofIdx2 * 3 + i, target.m_bary.m_gamma);
+                row.insert(dofIdx2 * 3 + i, target.m_bary.m_gamma);
             }
+            row.endFill();
             system.insertJacobianRow(ridx + i, row);
         }
 
