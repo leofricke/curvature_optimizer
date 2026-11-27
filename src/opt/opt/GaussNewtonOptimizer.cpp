@@ -31,7 +31,7 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
     step.resize(energyFunc->m_numVars);
 
     double prevEnergy = -1.0;
-    double currentEnergy = energyFunc->evaluateResidualAndJacobian(params);
+    double currentEnergy = energyFunc->evaluateEnergyAndGradient(params);
     onStart(params, currentEnergy);
 
     for (size_t i = 0; i < m_maxIterations; ++i)
@@ -40,7 +40,7 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
 
         if (i > 0)
         {
-            currentEnergy = energyFunc->evaluateResidualAndJacobian(params);
+            currentEnergy = energyFunc->evaluateEnergyAndGradient(params);
         }
         if (std::isnan(currentEnergy) || params.hasNaN())
         {
@@ -48,8 +48,8 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
             break;
         }
 
-        const double gradNorm = energyFunc->m_system.m_gradient.norm();
-        const double gradMaxNorm = energyFunc->m_system.m_gradient.lpNorm<Eigen::Infinity>();
+        const double gradNorm = energyFunc->m_gradient.norm();
+        const double gradMaxNorm = energyFunc->m_gradient.lpNorm<Eigen::Infinity>();
         if (gradMaxNorm < m_gradientTolerance)
         {
             m_statistics.m_status = Status::GradientNormBelowTolerance;
@@ -57,26 +57,25 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
         }
 
         double regularizer = 0.0;
-        GaussNewtonSystem& system = energyFunc->m_system;
-        const double minDiag = minDiagonal(system.m_hessian);
+        const double minDiag = minDiagonal(energyFunc->m_hessian);
         if (minDiag <= 1e-12)
         {
             regularizer = -minDiag + s_regularizationBeta;
         }
-        regularize(system.m_hessian, regularizer);
+        regularize(energyFunc->m_hessian, regularizer);
 
-        const bool patternDirty = system.m_hessianPatternDirty || i == 0;
-        if (!solver.compute(std::as_const(system.m_hessian).map(), patternDirty))
+        const bool patternDirty = energyFunc->m_hessianPatternDirty || i == 0;
+        if (!solver.compute(std::as_const(energyFunc->m_hessian).map(), patternDirty))
         {
             m_statistics.m_status = Status::SolverFailed;
             break;
         }
-        if (!solver.solve(-energyFunc->m_system.m_gradient, step))
+        if (!solver.solve(-energyFunc->m_gradient, step))
         {
             m_statistics.m_status = Status::SolverFailed;
             break;
         }
-        if (step.dot(energyFunc->m_system.m_gradient) >= 0.0)
+        if (step.dot(energyFunc->m_gradient) >= 0.0)
         {
             m_statistics.m_status = Status::NoDescentDirection;
             break;
@@ -99,7 +98,7 @@ double GaussNewtonOptimizer::run(std::shared_ptr<GaussNewtonEnergyFunction> ener
             }
             else
             {
-                stepSize = std::clamp(2.02 * (currentEnergy - prevEnergy) / step.dot(energyFunc->m_system.m_gradient), 1e-8, 1.0);
+                stepSize = std::clamp(2.02 * (currentEnergy - prevEnergy) / step.dot(energyFunc->m_gradient), 1e-8, 1.0);
             }
         }
         prevEnergy = currentEnergy;

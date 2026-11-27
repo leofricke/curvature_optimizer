@@ -13,7 +13,7 @@
 #include "energies/WillmoreEnergy.h"
 #include "quantities/BoundaryCurvatureDerivatives.h"
 #include "opt/GaussNewtonOptimizer.h"
-#include "opt/ModularGaussNewtonEnergyFunction.h"
+#include "opt/GaussNewtonEnergyFunction.h"
 #include <numbers>
 #include <stdexcept>
 
@@ -245,50 +245,48 @@ void CurvatureOptimizer::initTargetMetric()
     }
 }
 
-std::shared_ptr<ModularGaussNewtonEnergyFunction> CurvatureOptimizer::createEnergyFunction() const
+std::shared_ptr<GaussNewtonEnergyFunction> CurvatureOptimizer::createEnergyFunction() const
 {
-    std::vector<std::shared_ptr<ModularGaussNewtonEnergyBlock>> blocks;
-    std::vector<double> blockWeights;
+    std::vector<std::shared_ptr<GaussNewtonEnergyModule>> modules;
+    std::vector<double> moduleWeights;
     if (m_optimizerMode == OptimizerMode::TargetCurvature)
     {
-        blocks.push_back(std::make_shared<CurvatureEnergy>(*m_ws, m_targetVertexCurvatures));
-        blockWeights.push_back(m_curvatureEnergyWeight);
+        modules.push_back(std::make_shared<CurvatureEnergy>(*m_ws, m_targetVertexCurvatures));
+        moduleWeights.push_back(m_curvatureEnergyWeight);
         if (!m_targetBoundaryCurvatures.empty())
         {
-            blocks.push_back(std::make_shared<BoundaryCurvatureEnergy>(*m_ws, m_targetBoundaryCurvatures));
-            blockWeights.push_back(m_boundaryCurvatureEnergyWeight);
+            modules.push_back(std::make_shared<BoundaryCurvatureEnergy>(*m_ws, m_targetBoundaryCurvatures));
+            moduleWeights.push_back(m_boundaryCurvatureEnergyWeight);
         }
     }
     else if (m_optimizerMode == OptimizerMode::WillmoreEnergy)
     {
-        blocks.push_back(std::make_shared<WillmoreEnergy>(*m_ws));
-        blockWeights.push_back(m_curvatureEnergyWeight);
+        modules.push_back(std::make_shared<WillmoreEnergy>(*m_ws));
+        moduleWeights.push_back(m_curvatureEnergyWeight);
     }
     else if (m_optimizerMode == OptimizerMode::CurvatureVariation)
     {
-        blocks.push_back(std::make_shared<CurvatureVariationEnergy>(*m_ws, m_pNormFairing));
-        blockWeights.push_back(m_curvatureEnergyWeight);
+        modules.push_back(std::make_shared<CurvatureVariationEnergy>(*m_ws, m_pNormFairing));
+        moduleWeights.push_back(m_curvatureEnergyWeight);
     }
-    blocks.push_back(std::make_shared<AreaEnergy>(*m_ws, m_targetMetrics));
-    blockWeights.push_back(m_areaEnergyWeight);
-    blocks.push_back(std::make_shared<ConformalEnergy>(*m_ws, m_targetMetrics));
-    blockWeights.push_back(m_conformalEnergyWeight);
+    modules.push_back(std::make_shared<AreaEnergy>(*m_ws, m_targetMetrics));
+    moduleWeights.push_back(m_areaEnergyWeight);
+    modules.push_back(std::make_shared<ConformalEnergy>(*m_ws, m_targetMetrics));
+    moduleWeights.push_back(m_conformalEnergyWeight);
     if (!m_mesh->is_triangle_mesh())
     {
-        blocks.push_back(std::make_shared<PolygonPlanarityEnergy>(*m_ws));
-        blockWeights.push_back(1.0);
+        modules.push_back(std::make_shared<PolygonPlanarityEnergy>(*m_ws));
+        moduleWeights.push_back(1.0);
     }
     if (!m_targetPositions.empty())
     {
-        blocks.push_back(std::make_shared<PositionEnergy>(*m_ws, m_targetPositions));
-        blockWeights.push_back(m_positionEnergyWeight);
+        modules.push_back(std::make_shared<PositionEnergy>(*m_ws, m_targetPositions));
+        moduleWeights.push_back(m_positionEnergyWeight);
     }
-    blocks.push_back(std::make_shared<RegularizationEnergy>(*m_ws));
-    blockWeights.push_back(1e-3);
+    modules.push_back(std::make_shared<RegularizationEnergy>(*m_ws));
+    moduleWeights.push_back(1e-3);
 
-    std::shared_ptr<ModularGaussNewtonEnergyFunction> energyFunc = std::make_shared<ModularGaussNewtonEnergyFunction>(blocks);
-
-    energyFunc->initWeights(blockWeights);
+    std::shared_ptr<GaussNewtonEnergyFunction> energyFunc = std::make_shared<GaussNewtonEnergyFunction>(modules, moduleWeights);
 
     return energyFunc;
 }
@@ -313,7 +311,7 @@ Timings CurvatureOptimizer::compute(const std::vector<pmp::Vertex>& lockedVertic
 
     m_ws->m_dofs.initMeshDofs(lockedVertices);
 
-    std::shared_ptr<ModularGaussNewtonEnergyFunction> energyFunc = createEnergyFunction();
+    std::shared_ptr<GaussNewtonEnergyFunction> energyFunc = createEnergyFunction();
 
     m_initialCurvatureError = 0.0;
     m_currentCurvatureError = 0.0;
@@ -332,16 +330,16 @@ Timings CurvatureOptimizer::compute(const std::vector<pmp::Vertex>& lockedVertic
 
             if (m_initialCurvatureError <= 0.0)
             {
-                m_initialCurvatureError = m_currentCurvatureError = energyFunc->getBlockEnergy(0);
+                m_initialCurvatureError = m_currentCurvatureError = energyFunc->getModuleEnergy(0);
             }
             else
             {
-                m_currentCurvatureError = energyFunc->getBlockEnergy(0);
+                m_currentCurvatureError = energyFunc->getModuleEnergy(0);
             }
 
             if (m_meshUpdateCallback)
             {
-                const Progress progress = { currentEnergy, energyFunc->getBlockEnergies() };
+                const Progress progress = { currentEnergy, energyFunc->getModuleEnergies() };
                 m_meshUpdateCallback(progress);
             }
         });

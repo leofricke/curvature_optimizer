@@ -2,75 +2,41 @@
 
 #include "../CurvatureOptimizerWorkspace.h"
 #include "../TargetData.h"
+#include "EnergyUtil.h"
 
 CurvatureEnergy::CurvatureEnergy(CurvatureOptimizerWorkspace& ws, const std::vector<TargetVertexCurvature>& targetVertexCurvatures)
-    : ModularGaussNewtonEnergyBlock(targetVertexCurvatures.size() * 2, ws.m_dofs.numDofs()), m_ws(ws), m_targetVertexCurvatures(targetVertexCurvatures)
+    : GaussNewtonEnergyModule("CurvatureEnergy", ws.m_dofs.numDofs()), m_ws(ws), m_targetVertexCurvatures(targetVertexCurvatures)
 {
-    m_name = "CurvatureEnergy";
 }
 
-void CurvatureEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t CurvatureEnergy::numElements() const
 {
-    size_t ridx = m_offset;
-    for (const TargetVertexCurvature& target : m_targetVertexCurvatures)
-    {
-        IVertexCurvatureOperator& currentCurv = m_ws.getCurrentVertexCurvature(target.m_vertex);
+    return m_targetVertexCurvatures.size();
+}
 
-        const Eigen::Vector2d targetCurv = { target.m_kmax, target.m_kmin };
-        system.m_residual.segment<2>(ridx) = currentCurv.computePrincipalCurvatures(m_ws, target.m_vertex) - targetCurv;
-        ridx += 2;
+size_t CurvatureEnergy::numResiduals(size_t /*element*/) const
+{
+    return 2;
+}
+
+void CurvatureEnergy::evaluateElement(size_t element, GaussNewtonElementContext& ctx) const
+{
+    const TargetVertexCurvature& target = m_targetVertexCurvatures[element];
+    const PrincipalCurvatures& curv = m_ws.getCurrentVertexCurvature(target.m_vertex).m_curv;
+    ctx.residual(0) = curv.m_kmax - target.m_kmax;
+    ctx.residual(1) = curv.m_kmin - target.m_kmin;
+
+    if (ctx.withJacobian())
+    {
+        insertVertexGradient(ctx.jacobianRow(0), m_ws, m_ws.m_currentMaxCurvatureGradients[target.m_vertex]);
+        insertVertexGradient(ctx.jacobianRow(1), m_ws, m_ws.m_currentMinCurvatureGradients[target.m_vertex]);
     }
 }
 
-void CurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
+void CurvatureEnergy::initialize()
 {
-    size_t ridx = m_offset;
-    spmat::SpVec<double> row = system.createJacobianRow();
-    for (const TargetVertexCurvature& target : m_targetVertexCurvatures)
+    for (size_t element = 0; element < numElements(); ++element)
     {
-        const Eigen::Vector2d targetCurv = { target.m_kmax, target.m_kmin };
-        IVertexCurvatureOperator& currentCurv = m_ws.getCurrentVertexCurvature(target.m_vertex);
-        system.m_residual.segment<2>(ridx) = currentCurv.computePrincipalCurvatures(m_ws, target.m_vertex) - targetCurv;
-
-        const LocalGradient<Eigen::RowVector3d, 8>& gkmax = m_ws.m_currentMaxCurvatureGradients[target.m_vertex];
-        const LocalGradient<Eigen::RowVector3d, 8>& gkmin = m_ws.m_currentMinCurvatureGradients[target.m_vertex];
-
-        row.clearPattern();
-        row.beginFill();
-        for (pmp::Vertex vv : gkmax)
-        {
-            const int dofIdx = m_ws.m_dofs.dofIdx(vv);
-            if (dofIdx >= 0)
-            {
-                row.insertSegment(dofIdx * 3, gkmax[vv]);
-            }
-        }
-        row.endFill();
-        system.insertJacobianRow(ridx, row);
-
-        row.clearPattern();
-        row.beginFill();
-        for (pmp::Vertex vv : gkmin)
-        {
-            const int dofIdx = m_ws.m_dofs.dofIdx(vv);
-            if (dofIdx >= 0)
-            {
-                row.insertSegment(dofIdx * 3, gkmin[vv]);
-            }
-        }
-        row.endFill();
-        system.insertJacobianRow(ridx + 1, row);
-
-        ridx += 2;
-    }
-}
-
-void CurvatureEnergy::initWeights(double energyWeight, Eigen::VectorXd& weights)
-{
-    size_t ridx = m_offset;
-    for (const TargetVertexCurvature& target : m_targetVertexCurvatures)
-    {
-        weights.segment<2>(ridx).setConstant(energyWeight * m_ws.m_currentVertexDualAreas[target.m_vertex]);
-        ridx += 2;
+        residualWeights(element).setConstant(m_ws.m_currentVertexDualAreas[m_targetVertexCurvatures[element].m_vertex]);
     }
 }

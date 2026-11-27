@@ -3,15 +3,9 @@
 #include "../CurvatureOptimizerWorkspace.h"
 
 RegularizationEnergy::RegularizationEnergy(const CurvatureOptimizerWorkspace& ws)
-    : ModularGaussNewtonEnergyBlock(ws.m_mesh.n_vertices() * 3, ws.m_dofs.numDofs()), m_ws(ws)
+    : GaussNewtonEnergyModule("RegularizationEnergy", ws.m_dofs.numDofs()), m_ws(ws)
 {
-    m_name = "RegularizationEnergy";
-
-    m_initialPositions.reserve(m_ws.m_mesh.n_vertices());
-    for (pmp::Vertex v : m_ws.m_mesh.vertices())
-    {
-        m_initialPositions.emplace_back(v, m_ws.position(v));
-    }
+    resetPositions();
 }
 
 void RegularizationEnergy::resetPositions()
@@ -24,50 +18,42 @@ void RegularizationEnergy::resetPositions()
     }
 }
 
-void RegularizationEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t RegularizationEnergy::numElements() const
 {
-    size_t ridx = m_offset;
-    for (const InitialPosition& initialPosition : m_initialPositions)
-    {
-        const Eigen::Vector3d p = m_ws.position(initialPosition.m_vertex);
-        system.m_residual.segment<3>(ridx) = p - initialPosition.m_position;
-
-        ridx += 3;
-    }
+    return m_initialPositions.size();
 }
 
-void RegularizationEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t RegularizationEnergy::numResiduals(size_t /*element*/) const
 {
-    size_t ridx = m_offset;
-    spmat::SpVec<double> row = system.createJacobianRow();
-    for (const InitialPosition& initialPosition : m_initialPositions)
-    {
-        const Eigen::Vector3d p = m_ws.position(initialPosition.m_vertex);
-        system.m_residual.segment<3>(ridx) = p - initialPosition.m_position;
+    return 3;
+}
 
+void RegularizationEnergy::evaluateElement(size_t element, GaussNewtonElementContext& ctx) const
+{
+    const InitialPosition& initialPosition = m_initialPositions[element];
+    const Eigen::Vector3d p = m_ws.position(initialPosition.m_vertex);
+    for (size_t i = 0; i < 3; ++i)
+    {
+        ctx.residual(i) = p[i] - initialPosition.m_position[i];
+    }
+
+    if (ctx.withJacobian())
+    {
         const int dofIdx = m_ws.m_dofs.dofIdx(initialPosition.m_vertex);
         if (dofIdx >= 0)
         {
-            for (size_t i = 0; i < 3; ++i)
+            for (int i = 0; i < 3; ++i)
             {
-                row.clearPattern();
-                row.beginFill();
-                row.insert(dofIdx * 3 + i, 1.0);
-                row.endFill();
-                system.insertJacobianRow(ridx + i, row);
+                ctx.jacobianRow(i).insert(dofIdx * 3 + i, 1.0);
             }
         }
-
-        ridx += 3;
     }
 }
 
-void RegularizationEnergy::initWeights(double energyWeight, Eigen::VectorXd& weights)
+void RegularizationEnergy::initialize()
 {
-    size_t ridx = m_offset;
-    for (const InitialPosition& initialPosition : m_initialPositions)
+    for (size_t element = 0; element < numElements(); ++element)
     {
-        weights.segment<3>(ridx).setConstant(energyWeight * m_ws.m_currentVertexDualAreas[initialPosition.m_vertex] / std::pow(m_ws.m_currentMeshArea, 2.0));
-        ridx += 3;
+        residualWeights(element).setConstant(m_ws.m_currentVertexDualAreas[m_initialPositions[element].m_vertex] / std::pow(m_ws.m_currentMeshArea, 2.0));
     }
 }

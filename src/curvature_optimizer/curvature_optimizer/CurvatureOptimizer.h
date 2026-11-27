@@ -11,7 +11,7 @@
 #include <map>
 
 struct CurvatureOptimizerWorkspace;
-struct ModularGaussNewtonEnergyFunction;
+struct GaussNewtonEnergyFunction;
 
 /**
 * Main algorithm class for curvature optimization.
@@ -35,12 +35,12 @@ public:
     };
 
     /**
-    * Status of one optimization step, including the current energy and the energies of each individual blocks.
+    * Status of one optimization step, including the current energy and the energies of the individual modules.
     */
     struct Progress
     {
         double m_energy;
-        std::map<std::string, double> m_blockEnergies;
+        std::map<std::string, double> m_moduleEnergies;
     };
 
     using MeshUpdateCallback = std::function<void(const Progress& progress)>;
@@ -97,7 +97,7 @@ public:
 
 private:
     void initTargetMetric();
-    std::shared_ptr<ModularGaussNewtonEnergyFunction> createEnergyFunction() const;
+    std::shared_ptr<GaussNewtonEnergyFunction> createEnergyFunction() const;
 
 public:
     /**

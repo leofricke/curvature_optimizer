@@ -12,6 +12,7 @@ list (APPEND HEADER_FILES
     curvature_optimizer/energies/AreaEnergy.h
     curvature_optimizer/energies/BoundaryCurvatureEnergy.h
     curvature_optimizer/energies/ConformalEnergy.h
+    curvature_optimizer/energies/EnergyUtil.h
     curvature_optimizer/energies/CurvatureEnergy.h
     curvature_optimizer/energies/CurvatureVariationEnergy.h
     curvature_optimizer/energies/PolygonPlanarityEnergy.h

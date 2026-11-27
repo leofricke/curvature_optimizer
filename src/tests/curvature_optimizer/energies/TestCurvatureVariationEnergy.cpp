@@ -29,37 +29,38 @@ TEST_F(CurvatureVariationEnergyTest, TestCurvatureVariationEnergyJacobian)
 {
     Eigen::VectorXd& dofs = ws.m_dofs.getDofs();
     ws.updateGeometry(EnergyFunction::DerivativeMode::FirstDerivs);
-    ModularGaussNewtonEnergyFunction energyFunc({ std::make_shared<CurvatureVariationEnergy>(ws) });
-    energyFunc.m_system.m_buildFullJacobian = true;
-    energyFunc.evaluateResidualAndJacobian(dofs);
+    GaussNewtonEnergyFunction energyFunc({ std::make_shared<CurvatureVariationEnergy>(ws) });
+    energyFunc.m_buildFullJacobian = true;
+    energyFunc.evaluateEnergyAndGradient(dofs);
 
     const double eps = 1e-8;
     const double atol = 1e-4;
-    for (size_t i = 0; i < energyFunc.m_numResiduals; ++i)
+    const Eigen::VectorXd r0 = energyFunc.m_residual;
+    for (size_t j = 0; j < static_cast<size_t>(dofs.size()); ++j)
     {
-        if (energyFunc.m_system.m_residual[i] <= 1e-5)
+        const double orig = dofs[j];
+
+        dofs[j] = orig + eps;
+        ws.updateGeometry();
+        energyFunc.evaluateEnergy(dofs);
+        const Eigen::VectorXd r_plus = energyFunc.m_residual;
+
+        dofs[j] = orig - eps;
+        ws.updateGeometry();
+        energyFunc.evaluateEnergy(dofs);
+        const Eigen::VectorXd r_minus = energyFunc.m_residual;
+
+        dofs[j] = orig;
+        ws.updateGeometry();
+
+        for (size_t i = 0; i < energyFunc.m_numResiduals; ++i)
         {
-            continue;
-        }
-        for (size_t j = 0; j < static_cast<size_t>(dofs.size()); ++j)
-        {
-            const double orig = dofs[j];
-
-            dofs[j] = orig + eps;
-            ws.updateGeometry();
-            energyFunc.evaluateResidual(dofs);
-            const Eigen::VectorXd r_plus = energyFunc.m_system.m_residual;
-
-            dofs[j] = orig - eps;
-            ws.updateGeometry();
-            energyFunc.evaluateResidual(dofs);
-            const Eigen::VectorXd r_minus = energyFunc.m_system.m_residual;
-
-            dofs[j] = orig;
-            ws.updateGeometry();
-
+            if (r0[i] <= 1e-5)
+            {
+                continue;
+            }
             const double d = (r_plus[i] - r_minus[i]) / (2.0 * eps);
-            EXPECT_TRUE(checkDeriv(energyFunc.m_system.m_jacobian.coeff(i, j), d, atol));
+            EXPECT_TRUE(checkDeriv(energyFunc.m_jacobian.coeff(static_cast<int>(i), static_cast<int>(j)), d, atol));
         }
     }
 }

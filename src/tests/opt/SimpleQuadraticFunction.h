@@ -1,47 +1,23 @@
 #pragma once
 
-#include "opt/LambdaEnergyFunction.h"
+#include "opt/GaussNewtonLambdaModule.h"
 
 // (x - 2)^2 + 2(y + 3)^2 + 3(z - 5)^2
 inline std::shared_ptr<GaussNewtonEnergyFunction> createSimpleQuadraticFunctionResidual()
 {
-    GaussNewtonEnergyLambdaFunction::ResidualLambda residualLambda = [](const Eigen::VectorXd& x, GaussNewtonSystem& system)
-    {
-        system.m_residual[0] = std::sqrt(2.0) * (x[0] - 2.0);
-        system.m_residual[1] = std::sqrt(4.0) * (x[1] + 3.0);
-        system.m_residual[2] = std::sqrt(6.0) * (x[2] - 5.0);
-    };
-
-    GaussNewtonEnergyLambdaFunction::ResidualAndJacobianLambda jacobianLambda = [](const Eigen::VectorXd& x, GaussNewtonSystem& system)
-    {
-        system.beginFill();
-
-        system.m_residual[0] = std::sqrt(2.0) * (x[0] - 2.0);
-        system.m_residual[1] = std::sqrt(4.0) * (x[1] + 3.0);
-        system.m_residual[2] = std::sqrt(6.0) * (x[2] - 5.0);
-
-        spmat::SpVec<double> row = system.createJacobianRow();
-
-        row.clearPattern();
-        row.beginFill();
-        row.insert(0, std::sqrt(2.0));
-        row.endFill();
-        system.insertJacobianRow(0, row);
-
-        row.clearPattern();
-        row.beginFill();
-        row.insert(1, std::sqrt(4.0));
-        row.endFill();
-        system.insertJacobianRow(1, row);
-
-        row.clearPattern();
-        row.beginFill();
-        row.insert(2, std::sqrt(6.0));
-        row.endFill();
-        system.insertJacobianRow(2, row);
-
-        system.endFill();
-    };
-
-    return std::make_shared<GaussNewtonEnergyLambdaFunction>(3, 3, residualLambda, jacobianLambda);
+    auto module = std::make_shared<GaussNewtonLambdaModule>(
+        "SimpleQuadratic", 3, 3, [](size_t /*element*/) { return size_t(1); },
+        [](size_t element, GaussNewtonElementContext& ctx)
+        {
+            const Eigen::VectorXd& x = ctx.params();
+            const int i = static_cast<int>(element);
+            const double scale = std::sqrt(2.0 * (i + 1));
+            const double target[3] = { 2.0, -3.0, 5.0 };
+            ctx.residual(0) = scale * (x[i] - target[i]);
+            if (ctx.withJacobian())
+            {
+                ctx.jacobianRow(0).insert(i, scale);
+            }
+        });
+    return std::make_shared<GaussNewtonEnergyFunction>(std::vector<std::shared_ptr<GaussNewtonEnergyModule>> { module });
 }

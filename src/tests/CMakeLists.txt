@@ -34,7 +34,7 @@ list (APPEND SOURCE_FILES
     curvature_optimizer/quantities/TestScalarFieldGradientDerivatives.cpp
     
     opt/TestGaussNewtonOptimizer.cpp
-    opt/TestGaussNewtonSystem.cpp
+    opt/TestGaussNewtonEnergyFunction.cpp
     
     utils/TestKoppEigendecomposition.cpp
     utils/TestInlineMatrix.cpp

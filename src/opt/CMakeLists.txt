@@ -2,20 +2,18 @@ list (APPEND HEADER_FILES
     opt/EnergyFunction.h
     opt/GaussNewtonEnergyFunction.h
     opt/GaussNewtonOptimizer.h
-    opt/GaussNewtonSystem.h
-    opt/LambdaEnergyFunction.h
+    opt/GaussNewtonLambdaModule.h
     opt/LinearSolver.h
     opt/LineSearch.h
     opt/MeshDofs.h
-    opt/ModularGaussNewtonEnergyFunction.h
     opt/OptimizerBase.h
 
     opt/utils/SpMatUtil.h
 )
 
 list (APPEND SOURCE_FILES
+    opt/GaussNewtonEnergyFunction.cpp
     opt/GaussNewtonOptimizer.cpp
-    opt/GaussNewtonSystem.cpp
     opt/LinearSolver.cpp
     opt/LineSearch.cpp
     opt/OptimizerBase.cpp

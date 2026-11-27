@@ -2,59 +2,43 @@
 
 #include "../CurvatureOptimizerWorkspace.h"
 #include "../quantities/MeanCurvatureDerivatives.h"
+#include "EnergyUtil.h"
 
 WillmoreEnergy::WillmoreEnergy(CurvatureOptimizerWorkspace& ws)
-    : ModularGaussNewtonEnergyBlock(ws.m_mesh.n_vertices(), ws.m_dofs.numDofs()), m_ws(ws)
+    : GaussNewtonEnergyModule("WillmoreEnergy", ws.m_dofs.numDofs()), m_ws(ws)
 {
-    m_name = "WillmoreEnergy";
 }
 
-void WillmoreEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t WillmoreEnergy::numElements() const
 {
-    size_t ridx = m_offset;
-    for (pmp::Vertex v : m_ws.m_mesh.vertices())
-    {
-        const double H = computeVertexMeanCurvature(m_ws, v);
-
-        system.m_residual[ridx] = H;
-        ridx++;
-    }
+    return m_ws.m_mesh.vertices_size();
 }
 
-void WillmoreEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t WillmoreEnergy::numResiduals(size_t /*element*/) const
 {
-    size_t ridx = m_offset;
-    spmat::SpVec<double> row = system.createJacobianRow();
-    for (pmp::Vertex v : m_ws.m_mesh.vertices())
+    return 1;
+}
+
+void WillmoreEnergy::evaluateElement(size_t element, GaussNewtonElementContext& ctx) const
+{
+    const pmp::Vertex v(static_cast<pmp::IndexType>(element));
+
+    if (ctx.withJacobian())
     {
         LocalGradient<Eigen::RowVector3d, 8> gh;
-        const double H = computeVertexMeanCurvatureGradient(m_ws, v, gh);
-
-        system.m_residual[ridx] = H;
-
-        row.clearPattern();
-        row.beginFill();
-        for (pmp::Vertex vv : gh)
-        {
-            const int dofIdx = m_ws.m_dofs.dofIdx(vv);
-            if (dofIdx >= 0)
-            {
-                row.insertSegment(dofIdx * 3, gh[vv]);
-            }
-        }
-        row.endFill();
-        system.insertJacobianRow(ridx, row);
-
-        ridx++;
+        ctx.residual(0) = computeVertexMeanCurvatureGradient(m_ws, v, gh);
+        insertVertexGradient(ctx.jacobianRow(0), m_ws, gh);
+    }
+    else
+    {
+        ctx.residual(0) = computeVertexMeanCurvature(m_ws, v);
     }
 }
 
-void WillmoreEnergy::initWeights(double energyWeight, Eigen::VectorXd& weights)
+void WillmoreEnergy::initialize()
 {
-    size_t ridx = m_offset;
-    for (pmp::Vertex v : m_ws.m_mesh.vertices())
+    for (size_t element = 0; element < numElements(); ++element)
     {
-        weights[ridx] = energyWeight * m_ws.m_currentVertexDualAreas[v];
-        ridx++;
+        residualWeights(element).setConstant(m_ws.m_currentVertexDualAreas[pmp::Vertex(static_cast<pmp::IndexType>(element))]);
     }
 }

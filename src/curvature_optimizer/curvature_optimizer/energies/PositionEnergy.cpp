@@ -4,45 +4,40 @@
 #include "../TargetData.h"
 
 PositionEnergy::PositionEnergy(const CurvatureOptimizerWorkspace& ws, const std::vector<TargetPosition>& targetPositions)
-    : ModularGaussNewtonEnergyBlock(targetPositions.size() * 3, ws.m_dofs.numDofs()), m_ws(ws), m_targetPositions(targetPositions)
+    : GaussNewtonEnergyModule("PositionEnergy", ws.m_dofs.numDofs()), m_ws(ws), m_targetPositions(targetPositions)
 {
-    m_name = "PositionEnergy";
 }
 
-void PositionEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t PositionEnergy::numElements() const
 {
-    size_t ridx = m_offset;
-    for (const TargetPosition& target : m_targetPositions)
-    {
-        const pmp::Vertex v0 = target.m_bary.aVertex(m_ws.m_mesh);
-        const pmp::Vertex v1 = target.m_bary.bVertex(m_ws.m_mesh);
-        const pmp::Vertex v2 = target.m_bary.cVertex(m_ws.m_mesh);
-        const Eigen::Vector3d pos = target.m_bary.interpolate(m_ws.position(v0), m_ws.position(v1), m_ws.position(v2));
-        system.m_residual.segment<3>(ridx) = pos - target.m_position;
+    return m_targetPositions.size();
+}
 
-        ridx += 3;
+size_t PositionEnergy::numResiduals(size_t /*element*/) const
+{
+    return 3;
+}
+
+void PositionEnergy::evaluateElement(size_t element, GaussNewtonElementContext& ctx) const
+{
+    const TargetPosition& target = m_targetPositions[element];
+    const pmp::Vertex v0 = target.m_bary.aVertex(m_ws.m_mesh);
+    const pmp::Vertex v1 = target.m_bary.bVertex(m_ws.m_mesh);
+    const pmp::Vertex v2 = target.m_bary.cVertex(m_ws.m_mesh);
+    const Eigen::Vector3d pos = target.m_bary.interpolate(m_ws.position(v0), m_ws.position(v1), m_ws.position(v2));
+    for (size_t i = 0; i < 3; ++i)
+    {
+        ctx.residual(i) = pos[i] - target.m_position[i];
     }
-}
 
-void PositionEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
-{
-    size_t ridx = m_offset;
-    spmat::SpVec<double> row = system.createJacobianRow();
-    for (const TargetPosition& target : m_targetPositions)
+    if (ctx.withJacobian())
     {
-        const pmp::Vertex v0 = target.m_bary.aVertex(m_ws.m_mesh);
-        const pmp::Vertex v1 = target.m_bary.bVertex(m_ws.m_mesh);
-        const pmp::Vertex v2 = target.m_bary.cVertex(m_ws.m_mesh);
-        const Eigen::Vector3d pos = target.m_bary.interpolate(m_ws.position(v0), m_ws.position(v1), m_ws.position(v2));
-        system.m_residual.segment<3>(ridx) = pos - target.m_position;
-
         const int dofIdx0 = m_ws.m_dofs.dofIdx(v0);
         const int dofIdx1 = m_ws.m_dofs.dofIdx(v1);
         const int dofIdx2 = m_ws.m_dofs.dofIdx(v2);
-        for (size_t i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; ++i)
         {
-            row.clearPattern();
-            row.beginFill();
+            JacobianRow& row = ctx.jacobianRow(i);
             if (dofIdx0 >= 0)
             {
                 row.insert(dofIdx0 * 3 + i, target.m_bary.m_alpha);
@@ -55,20 +50,14 @@ void PositionEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNe
             {
                 row.insert(dofIdx2 * 3 + i, target.m_bary.m_gamma);
             }
-            row.endFill();
-            system.insertJacobianRow(ridx + i, row);
         }
-
-        ridx += 3;
     }
 }
 
-void PositionEnergy::initWeights(double energyWeight, Eigen::VectorXd& weights)
+void PositionEnergy::initialize()
 {
-    size_t ridx = m_offset;
-    for (const TargetPosition& target : m_targetPositions)
+    for (size_t element = 0; element < numElements(); ++element)
     {
-        weights.segment<3>(ridx).setConstant(energyWeight * m_ws.m_currentFaceAreas[target.m_bary.face(m_ws.m_mesh)] / std::pow(m_ws.m_currentMeshArea, 2.0));
-        ridx += 3;
+        residualWeights(element).setConstant(m_ws.m_currentFaceAreas[m_targetPositions[element].m_bary.face(m_ws.m_mesh)] / std::pow(m_ws.m_currentMeshArea, 2.0));
     }
 }

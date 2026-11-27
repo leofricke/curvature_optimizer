@@ -3,6 +3,7 @@
 #include "quantities/DihedralAngleDerivatives.h"
 #include "quantities/InteriorAngleDerivatives.h"
 #include "quantities/FaceAreaDerivatives.h"
+#include <cassert>
 
 CurvatureOptimizerWorkspace::CurvatureOptimizerWorkspace(pmp::SurfaceMesh& mesh)
     : m_mesh(mesh),
@@ -139,10 +140,14 @@ void CurvatureOptimizerWorkspace::updateVertexCurvatureOperator()
 
 void CurvatureOptimizerWorkspace::updateGeometry(EnergyFunction::DerivativeMode mode)
 {
+    assert(m_mesh.n_vertices() == m_mesh.vertices_size() && m_mesh.n_edges() == m_mesh.edges_size() && m_mesh.n_faces() == m_mesh.faces_size() && "updateGeometry() iterates by index and requires a mesh without deleted elements");
+
     // update areas and normals
-    m_currentMeshArea = 0.0;
-    for (pmp::Face f : m_mesh.faces())
+    double meshArea = 0.0;
+#pragma omp parallel for schedule(dynamic, 256) reduction(+ : meshArea)
+    for (int i = 0; i < static_cast<int>(m_mesh.faces_size()); ++i)
     {
+        const pmp::Face f(i);
         m_currentFaceNormals[f] = computeFaceNormal(*this, f);
 
         if (mode == EnergyFunction::DerivativeMode::NoDerivs)
@@ -155,12 +160,15 @@ void CurvatureOptimizerWorkspace::updateGeometry(EnergyFunction::DerivativeMode 
             m_currentFaceAreas[f] = computeFaceAreaGradient(*this, f, m_currentFaceAreaGradients[f]);
         }
 
-        m_currentMeshArea += m_currentFaceAreas[f];
+        meshArea += m_currentFaceAreas[f];
     }
+    m_currentMeshArea = meshArea;
 
     // update interior angles
-    for (pmp::Halfedge h : m_mesh.halfedges())
+#pragma omp parallel for schedule(dynamic, 256)
+    for (int i = 0; i < static_cast<int>(m_mesh.halfedges_size()); ++i)
     {
+        const pmp::Halfedge h(i);
         if (mode == EnergyFunction::DerivativeMode::NoDerivs)
         {
             m_currentInteriorAngles[h] = computeInteriorAngle(*this, h);
@@ -173,8 +181,10 @@ void CurvatureOptimizerWorkspace::updateGeometry(EnergyFunction::DerivativeMode 
     }
 
     // update dihedral angles
-    for (pmp::Edge e : m_mesh.edges())
+#pragma omp parallel for schedule(dynamic, 256)
+    for (int i = 0; i < static_cast<int>(m_mesh.edges_size()); ++i)
     {
+        const pmp::Edge e(i);
         if (mode == EnergyFunction::DerivativeMode::NoDerivs)
         {
             m_currentDihedralAngles[e] = computeDihedralAngle(*this, e, m_robustDihedralAngles);
@@ -187,8 +197,10 @@ void CurvatureOptimizerWorkspace::updateGeometry(EnergyFunction::DerivativeMode 
     }
 
     // update vertex dual areas
-    for (pmp::Vertex v : m_mesh.vertices())
+#pragma omp parallel for schedule(dynamic, 256)
+    for (int i = 0; i < static_cast<int>(m_mesh.vertices_size()); ++i)
     {
+        const pmp::Vertex v(i);
         if (mode == EnergyFunction::DerivativeMode::NoDerivs)
         {
             m_currentVertexDualAreas[v] = computeDualArea(*this, v, m_dualAreaMode);
@@ -201,8 +213,10 @@ void CurvatureOptimizerWorkspace::updateGeometry(EnergyFunction::DerivativeMode 
     }
 
     // update curvatures
-    for (pmp::Vertex v : m_mesh.vertices())
+#pragma omp parallel for schedule(dynamic, 256)
+    for (int i = 0; i < static_cast<int>(m_mesh.vertices_size()); ++i)
     {
+        const pmp::Vertex v(i);
         IVertexCurvatureOperator& currentCurv = getCurrentVertexCurvature(v);
 
         if (mode == EnergyFunction::DerivativeMode::NoDerivs)

@@ -1,18 +1,19 @@
 #pragma once
 
-#include "opt/ModularGaussNewtonEnergyFunction.h"
+#include "opt/GaussNewtonEnergyFunction.h"
+#include <pmp/surface_mesh.h>
 
 struct CurvatureOptimizerWorkspace;
 
-struct CurvatureVariationEnergy : public ModularGaussNewtonEnergyBlock
+struct CurvatureVariationEnergy : public GaussNewtonEnergyModule
 {
     CurvatureVariationEnergy(CurvatureOptimizerWorkspace& ws, double pNorm = 2.0);
 
-    void evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system) override;
-    void evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system) override;
-
-    void initWeights(double energyWeight, Eigen::VectorXd& weights) override;
+    size_t numElements() const override;
+    size_t numResiduals(size_t element) const override;
+    void evaluateElement(size_t element, GaussNewtonElementContext& ctx) const override;
 
     CurvatureOptimizerWorkspace& m_ws;
     double m_pNorm;
+    std::vector<pmp::Face> m_faces; // faces without boundary vertices
 };

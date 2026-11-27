@@ -176,7 +176,7 @@ void CurvatureOptimizerViewer::startOptimizer(bool useSavedCurvs)
         [&](const CurvatureOptimizer::Progress& progress)
         {
             m_plots["Energy"].emplace_back(progress.m_energy);
-            for (const auto& [name, energy] : progress.m_blockEnergies)
+            for (const auto& [name, energy] : progress.m_moduleEnergies)
             {
                 m_plots[name].emplace_back(energy);
             }

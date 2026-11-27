@@ -3,59 +3,44 @@
 #include "../CurvatureOptimizerWorkspace.h"
 #include "../TargetData.h"
 #include "../quantities/BoundaryCurvatureDerivatives.h"
+#include "EnergyUtil.h"
 
 BoundaryCurvatureEnergy::BoundaryCurvatureEnergy(const CurvatureOptimizerWorkspace& ws, const std::vector<TargetBoundaryCurvature>& targetBoundaryCurvatures)
-    : ModularGaussNewtonEnergyBlock(targetBoundaryCurvatures.size(), ws.m_dofs.numDofs()), m_ws(ws), m_targetBoundaryCurvatures(targetBoundaryCurvatures)
+    : GaussNewtonEnergyModule("BoundaryCurvatureEnergy", ws.m_dofs.numDofs()), m_ws(ws), m_targetBoundaryCurvatures(targetBoundaryCurvatures)
 {
-    m_name = "BoundaryCurvatureEnergy";
 }
 
-void BoundaryCurvatureEnergy::evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t BoundaryCurvatureEnergy::numElements() const
 {
-    size_t ridx = m_offset;
-    for (const TargetBoundaryCurvature& target : m_targetBoundaryCurvatures)
-    {
-        const double k = computeBoundaryCurvature(m_ws, target.m_vertex);
-
-        system.m_residual[ridx] = k - target.m_k;
-        ridx++;
-    }
+    return m_targetBoundaryCurvatures.size();
 }
 
-void BoundaryCurvatureEnergy::evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system)
+size_t BoundaryCurvatureEnergy::numResiduals(size_t /*element*/) const
 {
-    size_t ridx = m_offset;
-    spmat::SpVec<double> row = system.createJacobianRow();
-    for (const TargetBoundaryCurvature& target : m_targetBoundaryCurvatures)
+    return 1;
+}
+
+void BoundaryCurvatureEnergy::evaluateElement(size_t element, GaussNewtonElementContext& ctx) const
+{
+    const TargetBoundaryCurvature& target = m_targetBoundaryCurvatures[element];
+
+    if (ctx.withJacobian())
     {
         LocalGradient<Eigen::RowVector3d> gk;
         const double k = computeBoundaryCurvatureGradient(m_ws, target.m_vertex, gk);
-
-        system.m_residual[ridx] = k - target.m_k;
-
-        row.clearPattern();
-        row.beginFill();
-        for (pmp::Vertex vv : gk)
-        {
-            const int dofIdx = m_ws.m_dofs.dofIdx(vv);
-            if (dofIdx >= 0)
-            {
-                row.insertSegment(dofIdx * 3, gk[vv]);
-            }
-        }
-        row.endFill();
-        system.insertJacobianRow(ridx, row);
-
-        ridx++;
+        ctx.residual(0) = k - target.m_k;
+        insertVertexGradient(ctx.jacobianRow(0), m_ws, gk);
+    }
+    else
+    {
+        ctx.residual(0) = computeBoundaryCurvature(m_ws, target.m_vertex) - target.m_k;
     }
 }
 
-void BoundaryCurvatureEnergy::initWeights(double energyWeight, Eigen::VectorXd& weights)
+void BoundaryCurvatureEnergy::initialize()
 {
-    size_t ridx = m_offset;
-    for (const TargetBoundaryCurvature& target : m_targetBoundaryCurvatures)
+    for (size_t element = 0; element < numElements(); ++element)
     {
-        weights[ridx] = energyWeight * m_ws.m_currentVertexDualAreas[target.m_vertex];
-        ridx++;
+        residualWeights(element).setConstant(m_ws.m_currentVertexDualAreas[m_targetBoundaryCurvatures[element].m_vertex]);
     }
 }

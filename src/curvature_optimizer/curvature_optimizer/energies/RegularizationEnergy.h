@@ -1,11 +1,11 @@
 #pragma once
 
-#include "opt/ModularGaussNewtonEnergyFunction.h"
+#include "opt/GaussNewtonEnergyFunction.h"
 #include <pmp/surface_mesh.h>
 
 struct CurvatureOptimizerWorkspace;
 
-struct RegularizationEnergy : public ModularGaussNewtonEnergyBlock
+struct RegularizationEnergy : public GaussNewtonEnergyModule
 {
     struct InitialPosition
     {
@@ -17,10 +17,10 @@ struct RegularizationEnergy : public ModularGaussNewtonEnergyBlock
 
     void resetPositions();
 
-    void evaluateResidual(const Eigen::VectorXd&, GaussNewtonSystem& system) override;
-    void evaluateResidualAndJacobian(const Eigen::VectorXd&, GaussNewtonSystem& system) override;
-
-    void initWeights(double energyWeight, Eigen::VectorXd& weights) override;
+    size_t numElements() const override;
+    size_t numResiduals(size_t element) const override;
+    void evaluateElement(size_t element, GaussNewtonElementContext& ctx) const override;
+    void initialize() override;
 
     const CurvatureOptimizerWorkspace& m_ws;
     std::vector<InitialPosition> m_initialPositions;

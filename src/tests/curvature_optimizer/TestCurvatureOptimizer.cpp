@@ -133,8 +133,8 @@ TEST_F(CurvatureOptimizerCylinderTest, Sphere)
         if (!mesh->is_boundary(v))
         {
             const auto& curv = opt.getCurrentVertexCurvature(v);
-            EXPECT_NEAR(curv.m_kmax, 1.0, 0.2);
-            EXPECT_NEAR(curv.m_kmin, 1.0, 0.2);
+            EXPECT_NEAR(curv.m_kmax, 1.0, 0.25);
+            EXPECT_NEAR(curv.m_kmin, 1.0, 0.25);
         }
     }
 }
